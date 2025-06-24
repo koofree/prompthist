@@ -1,0 +1,104 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0",
+  "productName": "PromptHist",
+  "version": "0.1.0",
+  "identifier": "com.prompthist.app",
+  "build": {
+    "beforeDevCommand": "pnpm run dev",
+    "beforeBuildCommand": "pnpm run build",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../out"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PromptHist",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "connect-src": "'self' http://localhost:11434 https://api.openai.com https://api.anthropic.com",
+        "script-src": "'self' 'unsafe-inline'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: https:",
+        "font-src": "'self' data:"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "copyright": "Copyright © 2024 PromptHist Team",
+    "shortDescription": "AI Prompt History & Insights Tool",
+    "longDescription": "A powerful desktop application for tracking, analyzing, and optimizing your AI prompts with local LLM integration and advanced insights.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "externalBin": [],
+    "resources": []
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "fs": {
+      "scope": [
+        "$HOME/.prompthist/*",
+        "$APPDATA/.prompthist/*",
+        "$LOCALDATA/.prompthist/*"
+      ]
+    },
+    "dialog": {
+      "all": true,
+      "ask": true,
+      "confirm": true,
+      "message": true,
+      "open": true,
+      "save": true
+    },
+    "process": {
+      "all": false,
+      "exit": true,
+      "restart": true
+    },
+    "os": {
+      "all": true
+    }
+  }
+}
