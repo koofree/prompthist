@@ -72,13 +72,13 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       const result = await invoke<PromptEntry[]>('get_prompts', {
-        filter,
-        limit: 100,
+        filter: filter || {},
+        limit: 50,
         offset: 0,
       });
       setPrompts(result);
     } catch (error) {
-      showNotification('error', `Failed to load prompts: ${error}`);
+      showNotification('error', `Failed to load prompts: ${String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export default function DashboardPage() {
 
   const checkMonitoringStatus = async () => {
     try {
-      const result = await invoke<boolean>('is_monitoring_active');
+      const result = await invoke<boolean>('get_monitoring_status');
       setIsMonitoring(result);
     } catch (error) {
       console.error('Failed to check monitoring status:', error);
@@ -114,7 +114,7 @@ export default function DashboardPage() {
         showNotification('success', 'Monitoring started');
       }
     } catch (error) {
-      showNotification('error', `Failed to toggle monitoring: ${error}`);
+      showNotification('error', `Failed to toggle monitoring: ${String(error)}`);
     }
   };
 
@@ -138,7 +138,7 @@ export default function DashboardPage() {
         prompt.starred ? 'Prompt unstarred' : 'Prompt starred'
       );
     } catch (error) {
-      showNotification('error', `Failed to update prompt: ${error}`);
+      showNotification('error', `Failed to update prompt: ${String(error)}`);
     }
   };
 
@@ -153,7 +153,7 @@ export default function DashboardPage() {
       }
       showNotification('success', 'Prompt deleted');
     } catch (error) {
-      showNotification('error', `Failed to delete prompt: ${error}`);
+      showNotification('error', `Failed to delete prompt: ${String(error)}`);
     }
   };
 
@@ -180,7 +180,7 @@ export default function DashboardPage() {
       });
       setPrompts(result);
     } catch (error) {
-      showNotification('error', `Search failed: ${error}`);
+      showNotification('error', `Search failed: ${String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -192,7 +192,8 @@ export default function DashboardPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString();
   };
 
   const getApplicationColor = (app: string) => {
@@ -209,13 +210,13 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900'>
+    <div className='min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 animate-fade-in'>
       {/* Header */}
-      <header className='border-b border-white/10 bg-black/20 backdrop-blur-sm'>
+      <header className='border-b border-white/10 bg-black/30 backdrop-blur-md shadow-lg'>
         <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
           <div className='flex items-center justify-between py-4'>
             <div className='flex items-center space-x-4'>
-              <h1 className='text-2xl font-bold text-white'>
+              <h1 className='text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent'>
                 Prompt History Dashboard
               </h1>
               <div className='flex items-center space-x-2'>
@@ -278,44 +279,44 @@ export default function DashboardPage() {
       <div className='mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8'>
         {/* Stats Cards */}
         {stats && (
-          <div className='mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-            <div className='rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-sm'>
+          <div className='mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 animate-slide-in-left'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 backdrop-blur-md shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105'>
               <div className='flex items-center space-x-2'>
                 <BarChart3 className='h-5 w-5 text-blue-400' />
                 <span className='text-sm text-gray-300'>Total Prompts</span>
               </div>
               <p className='text-2xl font-bold text-white'>
-                {stats.total_prompts}
+                {typeof stats.total_prompts === 'number' ? stats.total_prompts : 0}
               </p>
             </div>
 
-            <div className='rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-sm'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 backdrop-blur-md shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105'>
               <div className='flex items-center space-x-2'>
                 <Settings className='h-5 w-5 text-green-400' />
                 <span className='text-sm text-gray-300'>Applications</span>
               </div>
               <p className='text-2xl font-bold text-white'>
-                {stats.applications}
+                {typeof stats.applications === 'number' ? stats.applications : 0}
               </p>
             </div>
 
-            <div className='rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-sm'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 backdrop-blur-md shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105'>
               <div className='flex items-center space-x-2'>
                 <Star className='h-5 w-5 text-yellow-400' />
                 <span className='text-sm text-gray-300'>Starred</span>
               </div>
               <p className='text-2xl font-bold text-white'>
-                {stats.starred_count}
+                {typeof stats.starred_count === 'number' ? stats.starred_count : 0}
               </p>
             </div>
 
-            <div className='rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-sm'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 backdrop-blur-md shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105'>
               <div className='flex items-center space-x-2'>
                 <RefreshCw className='h-5 w-5 text-purple-400' />
                 <span className='text-sm text-gray-300'>Recent Activity</span>
               </div>
               <p className='text-2xl font-bold text-white'>
-                {stats.recent_activity.length}
+                {typeof stats.recent_activity?.length === 'number' ? stats.recent_activity.length : 0}
               </p>
             </div>
           </div>
@@ -332,14 +333,14 @@ export default function DashboardPage() {
                   placeholder='Search prompts...'
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  onKeyPress={e => e.key === 'Enter' && searchPrompts()}
-                  className='w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-white placeholder-gray-400 backdrop-blur-sm focus:border-blue-500 focus:outline-none'
+                  onKeyDown={e => e.key === 'Enter' && searchPrompts()}
+                  className='w-full rounded-xl border border-white/20 bg-white/10 py-3 pl-10 pr-4 text-white placeholder-gray-400 backdrop-blur-md focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/50 transition-all duration-300'
                 />
               </div>
             </div>
             <button
               onClick={searchPrompts}
-              className='rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700'
+              className='rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 text-white font-medium transition-all duration-300 hover:from-blue-700 hover:to-blue-800 hover:shadow-lg hover:scale-105'
             >
               Search
             </button>
@@ -347,7 +348,7 @@ export default function DashboardPage() {
 
           {/* Advanced Filters */}
           {showFilters && (
-            <div className='rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-sm'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 backdrop-blur-md shadow-xl animate-fade-in'>
               <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
                 <div>
                   <label className='mb-2 block text-sm font-medium text-gray-300'>
@@ -422,14 +423,14 @@ export default function DashboardPage() {
         <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
           {/* Prompt List */}
           <div className='lg:col-span-2'>
-            <div className='rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-xl'>
               <div className='border-b border-white/10 p-4'>
                 <h2 className='text-lg font-semibold text-white'>
                   Prompts ({prompts.length})
                 </h2>
               </div>
 
-              <div className='max-h-96 overflow-y-auto'>
+              <div className='max-h-96 overflow-y-auto custom-scrollbar'>
                 {loading ? (
                   <div className='flex items-center justify-center p-8'>
                     <RefreshCw className='h-6 w-6 animate-spin text-blue-400' />
@@ -448,9 +449,9 @@ export default function DashboardPage() {
                     {prompts.map(prompt => (
                       <div
                         key={prompt.id}
-                        className={`cursor-pointer p-4 transition-colors hover:bg-white/10 ${
+                        className={`cursor-pointer p-4 transition-all duration-300 hover:bg-white/10 hover:scale-[1.02] ${
                           selectedPrompt?.id === prompt.id
-                            ? 'bg-blue-500/20'
+                            ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/20 border-l-4 border-blue-400'
                             : ''
                         }`}
                         onClick={() => setSelectedPrompt(prompt)}
@@ -474,14 +475,14 @@ export default function DashboardPage() {
                             <p className='truncate text-white'>
                               {prompt.content}
                             </p>
-                            {prompt.tags.length > 0 && (
+                            {prompt.tags && prompt.tags.length > 0 && (
                               <div className='mt-2 flex flex-wrap gap-1'>
                                 {prompt.tags.map((tag, index) => (
                                   <span
                                     key={index}
                                     className='inline-block rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-300'
                                   >
-                                    {tag}
+                                    {String(tag)}
                                   </span>
                                 ))}
                               </div>
@@ -534,7 +535,7 @@ export default function DashboardPage() {
 
           {/* Prompt Details */}
           <div className='lg:col-span-1'>
-            <div className='rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm'>
+            <div className='rounded-xl border border-white/20 bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-md shadow-xl'>
               <div className='border-b border-white/10 p-4'>
                 <h2 className='text-lg font-semibold text-white'>
                   Prompt Details
@@ -547,8 +548,8 @@ export default function DashboardPage() {
                     <label className='mb-1 block text-sm font-medium text-gray-300'>
                       Content
                     </label>
-                    <div className='rounded-lg border border-white/10 bg-white/5 p-3'>
-                      <p className='whitespace-pre-wrap text-white'>
+                    <div className='rounded-xl border border-white/20 bg-gray-900/80 p-4 backdrop-blur-sm shadow-inner'>
+                      <p className='whitespace-pre-wrap text-gray-100 leading-relaxed'>
                         {selectedPrompt.content}
                       </p>
                     </div>
@@ -562,7 +563,7 @@ export default function DashboardPage() {
                       <span
                         className={`inline-block h-3 w-3 rounded-full ${getApplicationColor(selectedPrompt.application)}`}
                       />
-                      <span className='text-white'>
+                      <span className='text-gray-100 font-medium'>
                         {selectedPrompt.application}
                       </span>
                     </div>
@@ -572,7 +573,7 @@ export default function DashboardPage() {
                     <label className='mb-1 block text-sm font-medium text-gray-300'>
                       Timestamp
                     </label>
-                    <p className='text-white'>
+                    <p className='text-gray-100 font-medium'>
                       {formatDate(selectedPrompt.timestamp)}
                     </p>
                   </div>
@@ -581,10 +582,10 @@ export default function DashboardPage() {
                     <label className='mb-1 block text-sm font-medium text-gray-300'>
                       Usage Count
                     </label>
-                    <p className='text-white'>{selectedPrompt.usage_count}</p>
+                    <p className='text-gray-100 font-medium'>{typeof selectedPrompt.usage_count === 'number' ? selectedPrompt.usage_count : 0}</p>
                   </div>
 
-                  {selectedPrompt.tags.length > 0 && (
+                  {selectedPrompt.tags && selectedPrompt.tags.length > 0 && (
                     <div>
                       <label className='mb-1 block text-sm font-medium text-gray-300'>
                         Tags
@@ -595,7 +596,7 @@ export default function DashboardPage() {
                             key={index}
                             className='inline-block rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-300'
                           >
-                            {tag}
+                            {String(tag)}
                           </span>
                         ))}
                       </div>

@@ -49,7 +49,7 @@ pub struct MonitoringConfig {
 impl Default for MonitoringConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             monitored_applications: vec![
                 "ChatGPT".to_string(),
                 "Claude".to_string(),
@@ -62,6 +62,47 @@ impl Default for MonitoringConfig {
             auto_save: true,
             encryption_enabled: true,
         }
+    }
+}
+
+impl MonitoringConfig {
+    pub fn load_from_file() -> std::result::Result<Self, String> {
+        let config_dir = dirs::config_dir()
+            .ok_or("Could not find config directory".to_string())?
+            .join("prompthist");
+        
+        std::fs::create_dir_all(&config_dir)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+        let config_path = config_dir.join("config.json");
+        
+        if config_path.exists() {
+            let content = std::fs::read_to_string(&config_path)
+                .map_err(|e| format!("Failed to read config file: {}", e))?;
+            let config: MonitoringConfig = serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse config file: {}", e))?;
+            println!("[CONFIG] Loaded configuration from: {:?}", config_path);
+            Ok(config)
+        } else {
+            println!("[CONFIG] No config file found, using defaults");
+            Ok(Self::default())
+        }
+    }
+    
+    pub fn save_to_file(&self) -> std::result::Result<(), String> {
+        let config_dir = dirs::config_dir()
+            .ok_or("Could not find config directory".to_string())?
+            .join("prompthist");
+        
+        std::fs::create_dir_all(&config_dir)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+        let config_path = config_dir.join("config.json");
+        
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        std::fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+        println!("[CONFIG] Saved configuration to: {:?}", config_path);
+        Ok(())
     }
 }
 

@@ -144,10 +144,10 @@ impl PromptDatabase {
         .bind(&prompt.content)
         .bind(&prompt.application)
         .bind(prompt.timestamp.to_rfc3339())
-        .bind(prompt.starred)
+        .bind(if prompt.starred { 1 } else { 0 })
         .bind(tags_json)
         .bind(prompt.usage_count)
-        .bind(prompt.is_encrypted)
+        .bind(if prompt.is_encrypted { 1 } else { 0 })
         .execute(&self.pool)
         .await?;
 
@@ -213,10 +213,28 @@ impl PromptDatabase {
                 content: row.get("content"),
                 application: row.get("application"),
                 timestamp,
-                starred: row.get("starred"),
+                starred: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(starred_int) = row.try_get::<i32, _>("starred") {
+                        starred_int != 0
+                    } else if let Ok(starred_str) = row.try_get::<String, _>("starred") {
+                        starred_str == "1" || starred_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
                 tags,
                 usage_count: row.get("usage_count"),
-                is_encrypted: row.get("is_encrypted"),
+                is_encrypted: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(encrypted_int) = row.try_get::<i32, _>("is_encrypted") {
+                        encrypted_int != 0
+                    } else if let Ok(encrypted_str) = row.try_get::<String, _>("is_encrypted") {
+                        encrypted_str == "1" || encrypted_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
             });
         }
 
@@ -242,10 +260,28 @@ impl PromptDatabase {
                 content: row.get("content"),
                 application: row.get("application"),
                 timestamp,
-                starred: row.get("starred"),
+                starred: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(starred_int) = row.try_get::<i32, _>("starred") {
+                        starred_int != 0
+                    } else if let Ok(starred_str) = row.try_get::<String, _>("starred") {
+                        starred_str == "1" || starred_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
                 tags,
                 usage_count: row.get("usage_count"),
-                is_encrypted: row.get("is_encrypted"),
+                is_encrypted: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(encrypted_int) = row.try_get::<i32, _>("is_encrypted") {
+                        encrypted_int != 0
+                    } else if let Ok(encrypted_str) = row.try_get::<String, _>("is_encrypted") {
+                        encrypted_str == "1" || encrypted_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
             }))
         } else {
             Ok(None)
@@ -268,7 +304,7 @@ impl PromptDatabase {
         }
         if let Some(starred) = starred {
             updates.push("starred = ?");
-            params.push(starred.to_string());
+            params.push(if starred { "1".to_string() } else { "0".to_string() });
         }
         if let Some(tags) = tags {
             updates.push("tags = ?");
@@ -335,10 +371,28 @@ impl PromptDatabase {
                 content: row.get("content"),
                 application: row.get("application"),
                 timestamp,
-                starred: row.get("starred"),
+                starred: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(starred_int) = row.try_get::<i32, _>("starred") {
+                        starred_int != 0
+                    } else if let Ok(starred_str) = row.try_get::<String, _>("starred") {
+                        starred_str == "1" || starred_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
                 tags,
                 usage_count: row.get("usage_count"),
-                is_encrypted: row.get("is_encrypted"),
+                is_encrypted: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(encrypted_int) = row.try_get::<i32, _>("is_encrypted") {
+                        encrypted_int != 0
+                    } else if let Ok(encrypted_str) = row.try_get::<String, _>("is_encrypted") {
+                        encrypted_str == "1" || encrypted_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
             });
         }
 
@@ -387,10 +441,28 @@ impl PromptDatabase {
                 content: row.get("content"),
                 application: row.get("application"),
                 timestamp,
-                starred: row.get("starred"),
+                starred: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(starred_int) = row.try_get::<i32, _>("starred") {
+                        starred_int != 0
+                    } else if let Ok(starred_str) = row.try_get::<String, _>("starred") {
+                        starred_str == "1" || starred_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
                 tags,
                 usage_count: row.get("usage_count"),
-                is_encrypted: row.get("is_encrypted"),
+                is_encrypted: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(encrypted_int) = row.try_get::<i32, _>("is_encrypted") {
+                        encrypted_int != 0
+                    } else if let Ok(encrypted_str) = row.try_get::<String, _>("is_encrypted") {
+                        encrypted_str == "1" || encrypted_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
             });
         }
 
@@ -413,10 +485,28 @@ impl PromptDatabase {
                 content: row.get("content"),
                 application: row.get("application"),
                 timestamp,
-                starred: row.get("starred"),
+                starred: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(starred_int) = row.try_get::<i32, _>("starred") {
+                        starred_int != 0
+                    } else if let Ok(starred_str) = row.try_get::<String, _>("starred") {
+                        starred_str == "1" || starred_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
                 tags,
                 usage_count: row.get("usage_count"),
-                is_encrypted: row.get("is_encrypted"),
+                is_encrypted: {
+                    // Try to get as integer first, then fall back to string
+                    if let Ok(encrypted_int) = row.try_get::<i32, _>("is_encrypted") {
+                        encrypted_int != 0
+                    } else if let Ok(encrypted_str) = row.try_get::<String, _>("is_encrypted") {
+                        encrypted_str == "1" || encrypted_str.to_lowercase() == "true"
+                    } else {
+                        false
+                    }
+                },
             });
         }
 

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.prompthist.app",
   "build": {
-    "beforeDevCommand": "pnpm run dev",
+    "beforeDevCommand": "TAURI_ENV=dev pnpm run dev",
     "beforeBuildCommand": "pnpm run build",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../out"

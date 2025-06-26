@@ -7,13 +7,15 @@ use chrono::Utc;
 use uuid::Uuid;
 use crate::models::{MonitoringConfig, DetectedApplication, PromptHistError};
 use crate::prompt_storage::PromptDatabase;
+use std::collections::HashMap;
 
 pub struct SystemMonitor {
-    config: MonitoringConfig,
+    pub config: MonitoringConfig,
     db: Arc<PromptDatabase>,
     running: Arc<Mutex<bool>>,
     detected_apps: Arc<Mutex<Vec<DetectedApplication>>>,
     sender: Option<mpsc::UnboundedSender<String>>,
+    recent_prompts: Arc<Mutex<HashMap<String, chrono::DateTime<Utc>>>>, // content -> timestamp
 }
 
 impl SystemMonitor {
@@ -24,13 +26,20 @@ impl SystemMonitor {
             running: Arc::new(Mutex::new(false)),
             detected_apps: Arc::new(Mutex::new(Vec::new())),
             sender: None,
+            recent_prompts: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub async fn start_monitoring(&mut self) -> std::result::Result<(), PromptHistError> {
         if *self.running.lock().unwrap() {
+            println!("[MONITOR] Monitoring already running, skipping start");
             return Ok(());
         }
+
+        println!("[MONITOR] 🚀 Starting monitoring system...");
+        println!("[MONITOR] Configuration: enabled={}, auto_save={}, threshold={}",
+            self.config.enabled, self.config.auto_save, self.config.capture_threshold);
+        println!("[MONITOR] Monitored applications: {:?}", self.config.monitored_applications);
 
         *self.running.lock().unwrap() = true;
 
@@ -41,9 +50,15 @@ impl SystemMonitor {
         let db = Arc::clone(&self.db);
         let running = Arc::clone(&self.running);
         let detected_apps = Arc::clone(&self.detected_apps);
+        let recent_prompts = Arc::clone(&self.recent_prompts);
 
         // Start monitoring tasks
         tokio::spawn(async move {
+            println!("[MONITOR] ⚡ Monitoring tasks started:");
+            println!("[MONITOR]   - Web browser monitoring: every 2 seconds");
+            println!("[MONITOR]   - Desktop app monitoring: every 3 seconds");
+            println!("[MONITOR]   - Clipboard monitoring: every 1 second");
+
             let mut web_interval = time::interval(Duration::from_secs(2));
             let mut desktop_interval = time::interval(Duration::from_secs(3));
             let mut clipboard_interval = time::interval(Duration::from_secs(1));
@@ -65,7 +80,7 @@ impl SystemMonitor {
                         }
                     }
                     _ = clipboard_interval.tick() => {
-                        if let Err(e) = Self::monitor_clipboard(&config, &db).await {
+                        if let Err(e) = Self::monitor_clipboard(&config, &db, &recent_prompts).await {
                             eprintln!("Clipboard monitoring error: {}", e);
                         }
                     }
@@ -85,8 +100,10 @@ impl SystemMonitor {
     }
 
     pub async fn stop_monitoring(&mut self) -> std::result::Result<(), PromptHistError> {
+        println!("[MONITOR] 🛑 Stopping monitoring system...");
         *self.running.lock().unwrap() = false;
         self.sender = None;
+        println!("[MONITOR] ✅ Monitoring stopped successfully");
         Ok(())
     }
 
@@ -114,6 +131,8 @@ impl SystemMonitor {
                 if let Ok(tabs) = Self::get_browser_tabs_macos(browser).await {
                     for (title, url) in tabs {
                         if let Some(app_name) = Self::identify_llm_application(&url) {
+                            println!("[MONITOR] Detected LLM application: {} in {} - {}", app_name, browser, title);
+
                             if config.monitored_applications.contains(&app_name) {
                                 let detected_app = DetectedApplication {
                                     name: app_name.clone(),
@@ -125,8 +144,13 @@ impl SystemMonitor {
 
                                 let mut apps = detected_apps.lock().unwrap();
                                 if !apps.iter().any(|a| a.name == detected_app.name && a.window_title == detected_app.window_title) {
+                                    println!("[MONITOR] Adding new detected application: {}", app_name);
                                     apps.push(detected_app);
+                                } else {
+                                    println!("[MONITOR] Application {} already tracked", app_name);
                                 }
+                            } else {
+                                println!("[MONITOR] Application {} not in monitored list", app_name);
                             }
                         }
                     }
@@ -173,6 +197,7 @@ impl SystemMonitor {
     async fn monitor_clipboard(
         config: &MonitoringConfig,
         db: &Arc<PromptDatabase>,
+        recent_prompts: &Arc<Mutex<HashMap<String, chrono::DateTime<Utc>>>>,
     ) -> std::result::Result<(), PromptHistError> {
         if !config.enabled {
             return Ok(());
@@ -181,23 +206,104 @@ impl SystemMonitor {
         #[cfg(target_os = "macos")]
         {
             if let Ok(content) = Self::get_clipboard_content_macos().await {
-                if Self::looks_like_prompt(&content) && content.len() >= config.capture_threshold as usize {
-                    if config.auto_save {
-                        let entry = crate::models::PromptEntry {
-                            id: Uuid::new_v4().to_string(),
-                            content,
-                            application: "clipboard".to_string(),
-                            timestamp: chrono::Utc::now(),
-                            starred: false,
-                            tags: vec![],
-                            usage_count: 0,
-                            is_encrypted: false,
-                        };
+                // Log clipboard content detection
+                if !content.is_empty() {
+                    println!("[MONITOR] Clipboard content detected: {} chars", content.len());
+                }
 
-                        if let Err(e) = db.save_prompt(&entry).await {
-                            eprintln!("Failed to save clipboard prompt: {}", e);
+                if Self::looks_like_prompt(&content) {
+                    println!("[MONITOR] Content identified as prompt: {}",
+                        if content.len() > 100 {
+                            format!("{}...", &content[..100])
+                        } else {
+                            content.clone()
                         }
+                    );
+
+                    if content.len() >= config.capture_threshold as usize {
+                        println!("[MONITOR] Prompt meets length threshold ({} >= {})",
+                            content.len(), config.capture_threshold);
+
+                        // Check for duplicates in recent prompts
+                        let now = Utc::now();
+                        let is_duplicate = {
+                            let mut recent = recent_prompts.lock().unwrap();
+                            
+                            // Clean up old entries (older than 1 hour)
+                            let one_hour_ago = now - chrono::Duration::hours(1);
+                            recent.retain(|_, timestamp| *timestamp > one_hour_ago);
+                            
+                            // Check if this content was recently seen (within last 5 minutes)
+                            let five_minutes_ago = now - chrono::Duration::minutes(5);
+                            if let Some(last_seen) = recent.get(&content) {
+                                if *last_seen > five_minutes_ago {
+                                    true // This is a duplicate
+                                } else {
+                                    recent.insert(content.clone(), now);
+                                    false // Not a recent duplicate
+                                }
+                            } else {
+                                recent.insert(content.clone(), now);
+                                false // First time seeing this content
+                            }
+                        };
+                        
+                        if is_duplicate {
+                            println!("[MONITOR] ⚠️  Duplicate prompt detected, skipping save (content seen within last 5 minutes)");
+                            return Ok(());
+                        }
+
+                        if config.auto_save {
+                            let entry = crate::models::PromptEntry {
+                                id: Uuid::new_v4().to_string(),
+                                content: content.clone(),
+                                application: "clipboard".to_string(),
+                                timestamp: chrono::Utc::now(),
+                                starred: false,
+                                tags: vec![],
+                                usage_count: 0,
+                                is_encrypted: false,
+                            };
+
+                            println!("[MONITOR] Attempting to save prompt with ID: {}", entry.id);
+
+                            match db.save_prompt(&entry).await {
+                                Ok(_) => {
+                                    println!("[MONITOR] ✅ Successfully saved prompt: ID={}, length={}, app={}",
+                                        entry.id, content.len(), entry.application);
+                                }
+                                Err(e) => {
+                                    eprintln!("[MONITOR] ❌ Failed to save clipboard prompt: {}", e);
+                                }
+                            }
+                        } else {
+                            println!("[MONITOR] Auto-save disabled, prompt not saved");
+                        }
+                    } else {
+                        println!("[MONITOR] Prompt too short ({} < {}), skipping",
+                            content.len(), config.capture_threshold);
                     }
+                } else if !content.is_empty() {
+                    println!("[MONITOR] Content not identified as prompt ({}...)",
+                        if content.len() > 50 { &content[..50] } else { &content });
+                }
+            } else {
+                // Only log clipboard read errors occasionally to avoid spam
+                use std::sync::Mutex;
+                use std::time::Instant;
+                static LAST_CLIPBOARD_ERROR: Mutex<Option<Instant>> = Mutex::new(None);
+
+                let now = Instant::now();
+                let mut last_error = LAST_CLIPBOARD_ERROR.lock().unwrap();
+
+                let should_log = match *last_error {
+                    None => true,
+                    Some(last) => now.duration_since(last).as_secs() > 60,
+                };
+
+                if should_log {
+                    println!("[MONITOR] Failed to read clipboard content");
+                    *last_error = Some(now);
                 }
             }
         }

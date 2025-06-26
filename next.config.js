@@ -1,13 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure for Tauri static export
-  output: 'export',
-
-  // Disable server-side features for static export
-  trailingSlash: true,
-
-  // Configure asset prefix for Tauri
-  assetPrefix: '.',
+  // Configure for Tauri - different settings for dev vs production
+  ...(process.env.TAURI_ENV === 'dev' ? {
+    // Development mode - serve normally for localhost
+    output: undefined,
+    trailingSlash: false,
+    assetPrefix: undefined,
+  } : {
+    // Production mode - static export for Tauri
+    output: 'export',
+    trailingSlash: true,
+    assetPrefix: '.',
+  }),
 
   // Optimize images for static export
   images: {

@@ -40,11 +40,24 @@ async fn save_prompt(
 #[tauri::command]
 async fn get_prompts(
     filter: PromptFilter,
+    limit: Option<i32>,
+    offset: Option<i32>,
     state: tauri::State<'_, AppState>,
 ) -> std::result::Result<Vec<PromptEntry>, String> {
-    match state.db.get_prompts(Some(filter), None, None).await {
-        Ok(prompts) => Ok(prompts),
-        Err(e) => Err(e.to_string()),
+    let effective_limit = limit.unwrap_or(50); // Default to 50 prompts for fast loading
+    let effective_offset = offset.unwrap_or(0);
+    
+    println!("[DB] Fetching prompts: limit={}, offset={}", effective_limit, effective_offset);
+    
+    match state.db.get_prompts(Some(filter), Some(effective_limit), Some(effective_offset)).await {
+        Ok(prompts) => {
+            println!("[DB] ✅ Successfully fetched {} prompts", prompts.len());
+            Ok(prompts)
+        },
+        Err(e) => {
+            eprintln!("[DB] ❌ Failed to fetch prompts: {}", e);
+            Err(e.to_string())
+        }
     }
 }
 
@@ -148,6 +161,29 @@ async fn get_monitoring_status(
 }
 
 #[tauri::command]
+async fn get_monitoring_config(
+    state: tauri::State<'_, AppState>,
+) -> std::result::Result<MonitoringConfig, String> {
+    let monitor = state.monitor.lock().await;
+    Ok(monitor.config.clone())
+}
+
+#[tauri::command]
+async fn update_monitoring_config(
+    config: MonitoringConfig,
+    state: tauri::State<'_, AppState>,
+) -> std::result::Result<(), String> {
+    // Save to file
+    config.save_to_file()?;
+    
+    // Update the monitor's config
+    let mut monitor = state.monitor.lock().await;
+    monitor.config = config;
+    
+    Ok(())
+}
+
+#[tauri::command]
 async fn send_prompt_to_ollama(
     request: OllamaRequest,
 ) -> std::result::Result<OllamaResponse, String> {
@@ -182,7 +218,17 @@ async fn main() {
         }
     };
 
-    let config = MonitoringConfig::default();
+    let config = MonitoringConfig::load_from_file()
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to load config: {}, using defaults", e);
+            MonitoringConfig::default()
+        });
+    
+    // Save the initial config to ensure file exists
+    if let Err(e) = config.save_to_file() {
+        eprintln!("Failed to save initial config: {}", e);
+    }
+    
     let monitor = Arc::new(Mutex::new(SystemMonitor::new(config, db.clone())));
 
     let app_state = AppState {
@@ -205,6 +251,8 @@ async fn main() {
             start_monitoring,
             stop_monitoring,
             get_monitoring_status,
+            get_monitoring_config,
+            update_monitoring_config,
             send_prompt_to_ollama
         ])
         .run(tauri::generate_context!())
